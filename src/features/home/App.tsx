@@ -10,12 +10,23 @@ function App() {
       <GlossyBackground />
       <div className="bg-[#222] text-white font-sans flex justify-center items-center h-screen m-0">
         <div className="text-center">
-          <header className="flex justify-between p-8 absolute top-0 left-0 right-0">
-            <div className="text-4xl font-bold">eK</div>
+          <header className="flex items-center justify-between p-8 absolute top-0 left-0 right-0">
+          <span className="font-bold text-2xl">Y.</span>
+          <span>yosua/yosua hares</span>
             <nav className="flex items-center">
-              <span className="ml-4">FR</span>
-              <span className="ml-4">☀️</span>
-              <span className="ml-4">...</span>
+              <Link to="/menu">
+                <button
+                  className="grid grid-cols-3 grid-rows-3 gap-1 w-8 h-8 p-0 bg-transparent border-none focus:outline-none hover:scale-110 transition-transform mr-4"
+                  aria-label="Open menu"
+                >
+                  {[...Array(9)].map((_, i) => (
+                    <span
+                      key={i}
+                      className="w-2 h-2 bg-transparent border-2 border-white rounded-full block"
+                    ></span>
+                  ))}
+                </button>
+              </Link>
             </nav>
           </header>
           <main className="flex flex-col justify-center items-center">
