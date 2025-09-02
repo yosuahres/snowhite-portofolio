@@ -1,1 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 @import "tailwindcss";
+
+/* Orbitron font utility for main hero text */
+.orbitron {
+	font-family: 'Orbitron', Arial, 'Audiowide', 'IBM Plex Mono', 'Menlo', 'Monaco', 'Consolas', monospace !important;
+	letter-spacing: 0.01em;
+}
+
+body {
+	font-family: 'Orbitron', Arial, 'Audiowide', 'IBM Plex Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+	letter-spacing: 0.01em;
+	font-size: 1.08rem;
+}

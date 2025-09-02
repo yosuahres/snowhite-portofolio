@@ -1,123 +1,199 @@
 import { useEffect, useRef } from "react";
 
+function randomBetween(a: number, b: number) {
+  return a + Math.random() * (b - a);
+}
+
 const GlossyBackground = () => {
   const mountRef = useRef<HTMLDivElement>(null);
-  // const paneRef = useRef<Pane | null>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
-    // Create canvas
-    const canvas = document.createElement('canvas');
+    // --- Foreground canvas ---
+    const canvas = document.createElement("canvas");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
+    canvas.style.width = "100vw";
+    canvas.style.height = "100vh";
     mount.appendChild(canvas);
 
-    // Get WebGL context
-    const gl = canvas.getContext('webgl');
-    if (!gl) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    // Vertex shader
-    const vert = `
-      attribute vec2 position;
-      varying vec2 vUv;
-      void main() {
-        vUv = position * 0.5 + 0.5;
-        gl_Position = vec4(position, 0, 1);
-      }
-    `;
+    // --- WebGL background ---
+    let gl: WebGLRenderingContext | null = null;
+    let program: WebGLProgram | null = null;
+    let timeLoc: WebGLUniformLocation | null = null;
+    let webglFrameId: number;
+    let webglCanvas: HTMLCanvasElement | null = null;
 
-    // Fragment shader (animated noise)
-    const frag = `
-      precision highp float;
-      varying vec2 vUv;
-      uniform float u_time;
+    function createWebGLBackground() {
+      webglCanvas = document.createElement("canvas");
+      webglCanvas.width = window.innerWidth;
+      webglCanvas.height = window.innerHeight;
+      webglCanvas.style.width = "100vw";
+      webglCanvas.style.height = "100vh";
+      webglCanvas.style.position = "absolute";
+      webglCanvas.style.top = "0";
+      webglCanvas.style.left = "0";
+      webglCanvas.style.zIndex = "0";
+      mount.appendChild(webglCanvas);
 
-      float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-      }
+      gl = webglCanvas.getContext("webgl");
+      if (!gl) return;
 
-      void main() {
-        float t = u_time * 0.15;
-        float n = random(vUv * 800.0 + t);
-        float grain = smoothstep(0.45, 0.55, n);
-        float fade = smoothstep(0.0, 0.2, vUv.y) * (1.0 - smoothstep(0.8, 1.0, vUv.y));
-        float alpha = 0.09 * fade; // darker alpha
-        gl_FragColor = vec4(vec3(grain * 0.3), alpha); // darker grain
-      }
-    `;
+      const vert = `
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+          vUv = position * 0.5 + 0.5;
+          gl_Position = vec4(position, 0, 1);
+        }
+      `;
 
-    // Compile shader
-    function compileShader(type: number, source: string) {
-      if (!gl) throw new Error('WebGL not supported');
-      const shader = gl.createShader(type)!;
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        throw new Error(gl.getShaderInfoLog(shader) || 'Shader compile error');
-      }
-      return shader;
+      const frag = `
+        precision highp float;
+        varying vec2 vUv;
+        uniform float u_time;
+        float random(vec2 st) {
+          return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+        }
+        void main() {
+          float t = u_time * 0.15;
+          float n = random(vUv * 800.0 + t);
+          float dots = step(0.5, mod(floor(vUv.x*80.0)+floor(vUv.y*80.0),2.0));
+          float grain = mix(n, dots, 0.18);
+          gl_FragColor = vec4(vec3(grain * 0.2), 1.0);
+        }
+      `;
+
+      const compile = (src: string, type: number) => {
+        const shader = gl!.createShader(type)!;
+        gl!.shaderSource(shader, src);
+        gl!.compileShader(shader);
+        return shader;
+      };
+
+      const vs = compile(vert, gl.VERTEX_SHADER);
+      const fs = compile(frag, gl.FRAGMENT_SHADER);
+
+      program = gl.createProgram();
+      gl.attachShader(program!, vs);
+      gl.attachShader(program!, fs);
+      gl.linkProgram(program!);
+      gl.useProgram(program!);
+
+      const vertices = new Float32Array([
+        -1, -1, 1, -1, -1, 1,
+        -1, 1, 1, -1, 1, 1,
+      ]);
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      const posLoc = gl.getAttribLocation(program!, "position");
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+      timeLoc = gl.getUniformLocation(program!, "u_time");
     }
 
-    // Create program
-    const vs = compileShader(gl.VERTEX_SHADER, vert);
-    const fs = compileShader(gl.FRAGMENT_SHADER, frag);
-    const program = gl.createProgram()!;
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    gl.useProgram(program);
-
-    // Fullscreen quad
-    const vertices = new Float32Array([
-      -1, -1,
-      1, -1,
-      -1, 1,
-      -1, 1,
-      1, -1,
-      1, 1,
-    ]);
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-    const posLoc = gl.getAttribLocation(program, 'position');
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-    // Uniforms
-    const timeLoc = gl.getUniformLocation(program, 'u_time');
-
-    // Resize
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
-    // Animation loop
-    let frameId: number;
-    let start = performance.now();
-    function animate() {
-      if (!gl) return;
-      const now = performance.now();
+    function animateWebGL() {
+      if (!gl || !program || !timeLoc) return;
+      gl.viewport(0, 0, webglCanvas!.width, webglCanvas!.height);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(timeLoc, (now - start) / 1000);
+      gl.uniform1f(timeLoc, performance.now() / 1000);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      webglFrameId = requestAnimationFrame(animateWebGL);
+    }
+
+    function resizeWebGL() {
+      if (!webglCanvas || !gl) return;
+      webglCanvas.width = window.innerWidth;
+      webglCanvas.height = window.innerHeight;
+      gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+    }
+
+    createWebGLBackground();
+    window.addEventListener("resize", resizeWebGL);
+    animateWebGL();
+
+    // --- Cursor glossy trail ---
+    let mouseX = 0;
+    let mouseY = 0;
+    let mousePresent = false;
+    const trail: { x: number; y: number; life: number }[] = [];
+
+    const onMove = (e: MouseEvent) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      mousePresent = true;
+
+      // Add a new trail circle
+      trail.push({ x: mouseX, y: mouseY, life: 1 });
+    };
+    const onMouseLeave = () => (mousePresent = false);
+    const onMouseEnter = () => (mousePresent = true);
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        mouseX = e.touches[0].clientX;
+        mouseY = e.touches[0].clientY;
+        mousePresent = true;
+        trail.push({ x: mouseX, y: mouseY, life: 1 });
+      }
+    };
+    const onTouchEnd = () => (mousePresent = false);
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseleave", onMouseLeave);
+    document.addEventListener("mouseenter", onMouseEnter);
+    window.addEventListener("touchmove", onTouch);
+    window.addEventListener("touchend", onTouchEnd);
+
+    // --- Canvas animate loop ---
+    let frameId: number;
+    function animate() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw fading trail
+      for (let i = 0; i < trail.length; i++) {
+        const t = trail[i];
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 12 * t.life, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(120,140,200,${0.6 * t.life})`;
+        ctx.shadowColor = "rgba(255,255,255,0.4)";
+        ctx.shadowBlur = 20 * t.life;
+        ctx.fill();
+
+        // Fade out
+        t.life -= 0.02;
+      }
+
+      // Remove dead circles
+      for (let i = trail.length - 1; i >= 0; i--) {
+        if (trail[i].life <= 0) {
+          trail.splice(i, 1);
+        }
+      }
+
       frameId = requestAnimationFrame(animate);
     }
     animate();
 
     return () => {
       cancelAnimationFrame(frameId);
-      window.removeEventListener('resize', handleResize);
-      if (mount.contains(canvas)) {
-        mount.removeChild(canvas);
-      }
+      cancelAnimationFrame(webglFrameId);
+      window.removeEventListener("resize", resizeWebGL);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      document.removeEventListener("mouseenter", onMouseEnter);
+      window.removeEventListener("touchmove", onTouch);
+      window.removeEventListener("touchend", onTouchEnd);
+      if (mount.contains(canvas)) mount.removeChild(canvas);
+      if (webglCanvas && mount.contains(webglCanvas)) mount.removeChild(webglCanvas);
     };
   }, []);
 
@@ -131,11 +207,24 @@ const GlossyBackground = () => {
           left: 0,
           width: "100vw",
           height: "100vh",
-          zIndex: 0,
+          zIndex: -1,
           pointerEvents: "none",
+          overflow: "hidden",
         }}
       />
-      {/* Pane will be rendered as a floating UI for debugging */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: -2,
+          pointerEvents: "none",
+          background: "rgba(0,0,0,0.44)",
+          mixBlendMode: "multiply",
+        }}
+      />
     </>
   );
 };

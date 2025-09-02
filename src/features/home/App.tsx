@@ -8,11 +8,13 @@ function App() {
   return (
     <>
       <GlossyBackground />
-      <div className="bg-[#222] text-white font-sans flex justify-center items-center h-screen m-0">
+  <div className="text-white flex justify-center items-center h-screen m-0 bg-transparent">
         <div className="text-center">
-          <header className="flex items-center justify-between p-8 absolute top-0 left-0 right-0">
-          <span className="font-bold text-2xl">Y.</span>
-          <span>yosua/yosua hares</span>
+          <header className="flex items-center justify-between p-8 absolute top-0 left-0 right-0 orbitron">
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-2xl">Y.</span>
+            <span>yosua/yosua hares</span>
+          </div>
             <nav className="flex items-center">
               <Link to="/menu">
                 <button
@@ -29,7 +31,7 @@ function App() {
               </Link>
             </nav>
           </header>
-          <main className="flex flex-col justify-center items-center">
+          <main className="flex flex-col justify-center items-center orbitron">
             <h1 className="text-5xl m-0 leading-tight">
               HEY, I'M YOSUA HARES
               <br />

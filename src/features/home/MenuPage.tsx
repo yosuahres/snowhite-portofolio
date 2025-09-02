@@ -1,6 +1,3 @@
-
-
-
 import { useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import GlossyBackground from "../../components/GlossyBackground";
@@ -109,8 +106,8 @@ export default function MenuPage() {
   >
         <div className="flex items-center gap-4 text-lg">
           {/* Using text as placeholder for logo */}
-          <span className="font-bold text-2xl">S.</span>
-          <span>sharlee/charles bruyerre</span>
+          <span className="font-bold text-2xl">Y.</span>
+          <span>yosua/yosua hares</span>
         </div>
         <div className="flex items-center gap-6">
           <span>FR</span>
